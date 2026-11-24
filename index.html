@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>한국의 멸종위기 야생생물 인터랙티브 시각화 (2024.12.31 기준)</title>
+  <style>
+    :root {
+      --bg: #F6F8F5;
+      --surface: #FFFFFF;
+      --surface-soft: #EEF3EC;
+      --ink: #1D2B22;
+      --muted: #5C6E63;
+      --line: #DCE5D9;
+      --grade-1: #C84B31;
+      --grade-1-bg: #FDECE8;
+      --grade-2: #2D6A4F;
+      --grade-2-bg: #E6F2EC;
+      --endemic: #2B6CB0;
+      --endemic-bg: #EBF4FF;
+      --shadow: 0 6px 24px rgba(29, 43, 34, 0.06);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+      padding: 24px 16px 64px;
+    }
+
+    .container {
+      max-width: 1260px;
+      margin: 0 auto;
+    }
+
+    header.hero {
+      background: linear-gradient(135deg, #FFFFFF 0%, #EDF4EE 100%);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 26px 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: var(--grade-2);
+      background: var(--grade-2-bg);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: clamp(21px, 3vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 820px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-value.g1 { color: var(--grade-1); }
+    .kpi-value.g2 { color: var(--grade-2); }
+    .kpi-value.en { color: var(--endemic); }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .panel-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Pure CSS/HTML Stacked Bar Chart */
+    .bar-chart-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 84px 1fr 64px;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .bar-row:hover {
+      background: var(--surface-soft);
+    }
+
+    .bar-row.selected-bar {
+      background: #E2EFE6;
+      font-weight: 700;
+    }
+
+    .bar-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .bar-track {
+      height: 22px;
+      background: #F0F4EF;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      width: 100%;
+    }
+
+    .bar-seg-g1 {
+      background: var(--grade-1);
+      height: 100%;
+      transition: width 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .bar-seg-g2 {
+      background: var(--grade-2);
+      height: 100%;
+      transition: width 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .bar-total {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* Redlist Grouped Bar Chart */
+    .rl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .rl-row {
+      display: grid;
+      grid-template-columns: 54px 1fr 78px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .rl-code {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .rl-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .rl-bar-bg {
+      height: 10px;
+      background: #F0F4EF;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .rl-bar-kr {
+      height: 100%;
+      background: #2D6A4F;
+      border-radius: 4px;
+    }
+
+    .rl-bar-iucn {
+      height: 100%;
+      background: #6BA3BE;
+      border-radius: 4px;
+    }
+
+    .rl-nums {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      line-height: 1.3;
+    }
+
+    .controls-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .filter-row:last-child { margin-bottom: 0; }
+
+    .filter-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      min-width: 72px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip:hover {
+      border-color: var(--grade-2);
+      background: var(--surface-soft);
+    }
+
+    .chip.active {
+      background: var(--grade-2);
+      color: #FFFFFF;
+      border-color: var(--grade-2);
+    }
+
+    .chip.active-g1 {
+      background: var(--grade-1);
+      color: #FFFFFF;
+      border-color: var(--grade-1);
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 210px;
+      max-width: 340px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--ink);
+      background: var(--bg);
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--grade-2);
+      background: #FFFFFF;
+    }
+
+    .reset-btn {
+      border: 1px solid var(--line);
+      background: #FFFFFF;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .reset-btn:hover { color: var(--ink); border-color: var(--muted); }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .waffle-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+      gap: 6px;
+    }
+
+    .species-cell {
+      aspect-ratio: 1 / 1;
+      min-height: 20px;
+      border-radius: 5px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .species-cell:hover, .species-cell.selected {
+      transform: scale(1.22);
+      z-index: 3;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+      outline: 2px solid var(--ink);
+    }
+
+    .species-cell.dimmed {
+      opacity: 0.16;
+      transform: scale(0.92);
+    }
+
+    .explorer-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .detail-card {
+      position: sticky;
+      top: 20px;
+      align-self: start;
+    }
+
+    .detail-name {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .detail-sci {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 8px;
+    }
+
+    .badge-g1 { background: var(--grade-1-bg); color: var(--grade-1); }
+    .badge-g2 { background: var(--grade-2-bg); color: var(--grade-2); }
+    .badge-en { background: var(--endemic-bg); color: var(--endemic); }
+    .badge-neu { background: var(--surface-soft); color: var(--ink); }
+
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .meta-table th, .meta-table td {
+      padding: 9px 6px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+    }
+
+    .meta-table th {
+      color: var(--muted);
+      font-weight: 600;
+      width: 42%;
+    }
+
+    .list-scroll {
+      max-height: 480px;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.data-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface-soft);
+      color: var(--ink);
+      font-weight: 700;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      z-index: 1;
+    }
+
+    table.data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+    }
+
+    table.data-table tr:hover td {
+      background: var(--surface-soft);
+    }
+
+    table.data-table tr.active-row td {
+      background: #E3EFE7;
+      font-weight: 600;
+    }
+
+    footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 960px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-row, .explorer-grid { grid-template-columns: 1fr; }
+      .detail-card { position: static; }
+    }
+
+    @media (max-width: 520px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      header.hero { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <span class="eyebrow">기후에너지환경부 국립생물자원관 · 2024.12.31 기준</span>
+      <h1>한국의 멸종위기 야생생물 인터랙티브 시각화</h1>
+      <p class="subtitle">
+        등록된 전체 267종의 분류군·법정 등급(Ⅰ급/Ⅱ급)·고유종 여부·국가적색목록 및 세계자연보전연맹(IUCN) 등급을 탐색할 수 있는 오프라인 완결형 대시보드입니다.
+      </p>
+    </header>
+
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">전체 지정 종 수</div>
+        <div class="kpi-value">267종</div>
+        <div class="kpi-sub">분류군 9개 영역</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">멸종위기 야생생물 Ⅰ급</div>
+        <div class="kpi-value g1">60종</div>
+        <div class="kpi-sub">전체의 22.5%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">멸종위기 야생생물 Ⅱ급</div>
+        <div class="kpi-value g2">207종</div>
+        <div class="kpi-sub">전체의 77.5%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">고유종 (Y)</div>
+        <div class="kpi-value en">46종</div>
+        <div class="kpi-sub">전체의 17.2%</div>
+      </div>
+    </section>
+
+    <section class="controls-panel">
+      <div class="filter-row" id="groupFilters">
+        <span class="filter-label">분류군</span>
+      </div>
+      <div class="filter-row" id="gradeFilters">
+        <span class="filter-label">법정 등급</span>
+        <button type="button" class="chip active" data-grade="ALL">전체 (267)</button>
+        <button type="button" class="chip" data-grade="I">Ⅰ급 (60종)</button>
+        <button type="button" class="chip" data-grade="II">Ⅱ급 (207종)</button>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">조건·검색</span>
+        <button type="button" class="chip" id="endemicToggle">고유종만 보기 (46종)</button>
+        <input type="text" id="searchInput" class="search-input" placeholder="국명 또는 학명 검색 (예: 수달, 반달가슴곰, Ursus)..." />
+        <button type="button" class="reset-btn" id="resetBtn">필터 초기화</button>
+        <span class="panel-note" id="resultCount" style="margin-left:auto;">검색·필터 결과: 267 / 267종</span>
+      </div>
+    </section>
+
+    <section class="charts-row">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">분류군별 Ⅰ급 · Ⅱ급 분포</h2>
+          <span class="panel-note">항목 클릭 시 해당 분류군 필터 적용</span>
+        </div>
+        <div class="legend-bar">
+          <span class="legend-item"><i class="dot" style="background:#C84B31;"></i>Ⅰ급 (60종)</span>
+          <span class="legend-item"><i class="dot" style="background:#2D6A4F;"></i>Ⅱ급 (207종)</span>
+        </div>
+        <div class="bar-chart-list" id="groupBarChart"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">국가적색목록(KR) vs IUCN 등급</h2>
+          <span class="panel-note">기재 항목 기준 비교</span>
+        </div>
+        <div class="legend-bar">
+          <span class="legend-item"><i class="dot" style="background:#2D6A4F;"></i>국가적색목록 (KR)</span>
+          <span class="legend-item"><i class="dot" style="background:#6BA3BE;"></i>세계자연보전연맹 (IUCN)</span>
+        </div>
+        <div class="rl-list" id="redlistBarChart"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">전체 267종 개체 매트릭스</h2>
+        <span class="panel-note">각 칸은 1개 종을 나타냅니다. 클릭하면 아래 상세 카드가 바뀝니다.</span>
+      </div>
+      <div class="legend-bar">
+        <span class="legend-item"><i class="dot" style="background:#C84B31;"></i>Ⅰ급</span>
+        <span class="legend-item"><i class="dot" style="background:#2D6A4F;"></i>Ⅱ급</span>
+        <span class="legend-item"><i class="dot" style="background:#90CDF4; border:1px solid #2B6CB0;"></i>고유종 (Y)</span>
+      </div>
+      <div class="waffle-grid" id="waffleGrid"></div>
+    </section>
+
+    <section class="explorer-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">종 목록</h2>
+          <span class="panel-note" id="tableNote">267개 항목 표시</span>
+        </div>
+        <div class="list-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>국명</th>
+                <th>학명</th>
+                <th>분류군</th>
+                <th>등급</th>
+                <th>고유종</th>
+              </tr>
+            </thead>
+            <tbody id="speciesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel detail-card">
+        <div class="panel-header">
+          <h2 class="panel-title">종 상세 정보</h2>
+          <span class="panel-note" id="detailId">#1</span>
+        </div>
+        <div id="detailContent"></div>
+      </div>
+    </section>
+
+    <footer>
+      데이터 출처: 기후에너지환경부 국립생물자원관 「한국의 멸종위기종」(2024.12.31 기준, 총 267종)
+    </footer>
+  </div>
+
+  <script>
+    const SPECIES_DATA = [{"id": 1, "group": "포유류", "grade": "I", "name": "늑대", "scientific": "Canis lupus coreanus", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "LC"}, {"id": 2, "group": "포유류", "grade": "I", "name": "대륙사슴", "scientific": "Cervus nippon hortulorum", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "LC"}, {"id": 3, "group": "포유류", "grade": "I", "name": "반달가슴곰", "scientific": "Ursus thibetanus ussuricus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 4, "group": "포유류", "grade": "I", "name": "붉은박쥐", "scientific": "Myotis rufoniger", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 5, "group": "포유류", "grade": "I", "name": "사향노루", "scientific": "Moschus moschiferus", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "VU"}, {"id": 6, "group": "포유류", "grade": "I", "name": "산양", "scientific": "Naemorhedus caudatus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 7, "group": "포유류", "grade": "I", "name": "수달", "scientific": "Lutra lutra", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 8, "group": "포유류", "grade": "I", "name": "스라소니", "scientific": "Lynx lynx", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "LC"}, {"id": 9, "group": "포유류", "grade": "I", "name": "여우", "scientific": "Vulpes vulpes peculiosa", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 10, "group": "포유류", "grade": "I", "name": "작은관코박쥐", "scientific": "Murina ussuriensis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 11, "group": "포유류", "grade": "I", "name": "표범", "scientific": "Panthera pardus orientalis", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "VU"}, {"id": 12, "group": "포유류", "grade": "I", "name": "호랑이", "scientific": "Panthera tigris altaica", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "EN"}, {"id": 13, "group": "포유류", "grade": "II", "name": "담비", "scientific": "Martes flavigula", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 14, "group": "포유류", "grade": "II", "name": "무산쇠족제비", "scientific": "Mustela nivalis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 15, "group": "포유류", "grade": "II", "name": "물개", "scientific": "Callorhinus ursinus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 16, "group": "포유류", "grade": "II", "name": "물범", "scientific": "Phoca largha", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 17, "group": "포유류", "grade": "II", "name": "삵", "scientific": "Prionailurus bengalensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 18, "group": "포유류", "grade": "II", "name": "큰바다사자", "scientific": "Eumetopias jubatus", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "NT"}, {"id": 19, "group": "포유류", "grade": "II", "name": "토끼박쥐", "scientific": "Plecotus auritus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 20, "group": "포유류", "grade": "II", "name": "하늘다람쥐", "scientific": "Pteromys volans aluco", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 21, "group": "조류", "grade": "I", "name": "검독수리", "scientific": "Aquila chrysaetos", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 22, "group": "조류", "grade": "I", "name": "넓적부리도요", "scientific": "Eurynorhynchus pygmeus", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "CR"}, {"id": 23, "group": "조류", "grade": "I", "name": "노랑부리백로", "scientific": "Egretta eulophotes", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 24, "group": "조류", "grade": "I", "name": "두루미", "scientific": "Grus japonensis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 25, "group": "조류", "grade": "I", "name": "매", "scientific": "Falco peregrinus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 26, "group": "조류", "grade": "I", "name": "먹황새", "scientific": "Ciconia nigra", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 27, "group": "조류", "grade": "I", "name": "저어새", "scientific": "Platalea minor", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "EN"}, {"id": 28, "group": "조류", "grade": "I", "name": "참수리", "scientific": "Haliaeetus pelagicus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 29, "group": "조류", "grade": "I", "name": "청다리도요사촌", "scientific": "Tringa guttifer", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 30, "group": "조류", "grade": "I", "name": "크낙새", "scientific": "Dryocopus javensis", "endemic": true, "redlist_kr": "RE", "redlist_iucn": "LC"}, {"id": 31, "group": "조류", "grade": "I", "name": "호사비오리", "scientific": "Mergus squamatus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 32, "group": "조류", "grade": "I", "name": "혹고니", "scientific": "Cygnus olor", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 33, "group": "조류", "grade": "I", "name": "황새", "scientific": "Ciconia boyciana", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 34, "group": "조류", "grade": "I", "name": "흰꼬리수리", "scientific": "Haliaeetus albicilla", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 35, "group": "조류", "grade": "II", "name": "개리", "scientific": "Anser cygnoides", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 36, "group": "조류", "grade": "II", "name": "검은머리갈매기", "scientific": "Larus saundersi", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 37, "group": "조류", "grade": "II", "name": "검은머리물떼새", "scientific": "Haematopus ostralegus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 38, "group": "조류", "grade": "II", "name": "검은머리촉새", "scientific": "Emberiza aureola", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 39, "group": "조류", "grade": "II", "name": "검은목두루미", "scientific": "Grus grus", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 40, "group": "조류", "grade": "II", "name": "고니", "scientific": "Cygnus columbianus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 41, "group": "조류", "grade": "II", "name": "고대갈매기", "scientific": "Larus relictus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 42, "group": "조류", "grade": "II", "name": "긴꼬리딱새", "scientific": "Terpsiphone atrocaudata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 43, "group": "조류", "grade": "II", "name": "긴점박이올빼미", "scientific": "Strix uralensis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 44, "group": "조류", "grade": "II", "name": "까막딱다구리", "scientific": "Dryocopus martius", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 45, "group": "조류", "grade": "II", "name": "노랑부리저어새", "scientific": "Platalea leucorodia", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 46, "group": "조류", "grade": "II", "name": "느시", "scientific": "Otis tarda", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 47, "group": "조류", "grade": "II", "name": "독수리", "scientific": "Aegypius monachus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 48, "group": "조류", "grade": "II", "name": "따오기", "scientific": "Nipponia nippon", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "EN"}, {"id": 49, "group": "조류", "grade": "II", "name": "뜸부기", "scientific": "Gallicrex cinerea", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 50, "group": "조류", "grade": "II", "name": "무당새", "scientific": "Emberiza sulphurata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 51, "group": "조류", "grade": "II", "name": "물수리", "scientific": "Pandion haliaetus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 52, "group": "조류", "grade": "II", "name": "벌매", "scientific": "Pernis ptilorhynchus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 53, "group": "조류", "grade": "II", "name": "붉은배새매", "scientific": "Accipiter soloensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 54, "group": "조류", "grade": "II", "name": "붉은어깨도요", "scientific": "Calidris tenuirostris", "endemic": false, "redlist_kr": "NE", "redlist_iucn": "EN"}, {"id": 55, "group": "조류", "grade": "II", "name": "붉은해오라기", "scientific": "Gorsachius goisagi", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 56, "group": "조류", "grade": "II", "name": "뿔쇠오리", "scientific": "Synthliboramphus wumizusume", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 57, "group": "조류", "grade": "II", "name": "뿔종다리", "scientific": "Galerida cristata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 58, "group": "조류", "grade": "II", "name": "새매", "scientific": "Accipiter nisus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 59, "group": "조류", "grade": "II", "name": "새호리기", "scientific": "Falco subbuteo", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 60, "group": "조류", "grade": "II", "name": "섬개개비", "scientific": "Locustella pleskei", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 61, "group": "조류", "grade": "II", "name": "솔개", "scientific": "Milvus migrans", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 62, "group": "조류", "grade": "II", "name": "쇠검은머리쑥새", "scientific": "Emberiza yessoensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 63, "group": "조류", "grade": "II", "name": "수리부엉이", "scientific": "Bubo bubo", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 64, "group": "조류", "grade": "II", "name": "알락개구리매", "scientific": "Circus melanoleucos", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 65, "group": "조류", "grade": "II", "name": "알락꼬리마도요", "scientific": "Numenius madagascariensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 66, "group": "조류", "grade": "II", "name": "양비둘기", "scientific": "Columba rupestris", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 67, "group": "조류", "grade": "II", "name": "올빼미", "scientific": "Strix aluco", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 68, "group": "조류", "grade": "II", "name": "재두루미", "scientific": "Grus vipio", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "VU"}, {"id": 69, "group": "조류", "grade": "II", "name": "잿빛개구리매", "scientific": "Circus cyaneus", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 70, "group": "조류", "grade": "II", "name": "조롱이", "scientific": "Accipiter gularis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 71, "group": "조류", "grade": "II", "name": "참매", "scientific": "Accipiter gentilis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 72, "group": "조류", "grade": "II", "name": "큰고니", "scientific": "Cygnus cygnus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 73, "group": "조류", "grade": "II", "name": "큰기러기", "scientific": "Anser fabalis", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 74, "group": "조류", "grade": "II", "name": "큰덤불해오라기", "scientific": "Ixobrychus eurhythmus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 75, "group": "조류", "grade": "II", "name": "큰말똥가리", "scientific": "Buteo hemilasius", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "LC"}, {"id": 76, "group": "조류", "grade": "II", "name": "팔색조", "scientific": "Pitta nympha", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "VU"}, {"id": 77, "group": "조류", "grade": "II", "name": "항라머리검독수리", "scientific": "Aquila clanga", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 78, "group": "조류", "grade": "II", "name": "흑기러기", "scientific": "Branta bernicla", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 79, "group": "조류", "grade": "II", "name": "흑두루미", "scientific": "Grus monacha", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 80, "group": "조류", "grade": "II", "name": "흑비둘기", "scientific": "Columba janthina", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 81, "group": "조류", "grade": "II", "name": "흰목물떼새", "scientific": "Charadrius placidus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 82, "group": "조류", "grade": "II", "name": "흰이마기러기", "scientific": "Anser erythropus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 83, "group": "조류", "grade": "II", "name": "흰죽지수리", "scientific": "Aquila heliaca", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 84, "group": "양서파충류", "grade": "I", "name": "비바리뱀", "scientific": "Sibynophis chinensis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 85, "group": "양서파충류", "grade": "I", "name": "수원청개구리", "scientific": "Hyla suweonensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 86, "group": "양서파충류", "grade": "II", "name": "고리도룡뇽", "scientific": "Hynobius yangi", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 87, "group": "양서파충류", "grade": "II", "name": "구렁이", "scientific": "Elaphe schrenckii", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 88, "group": "양서파충류", "grade": "II", "name": "금개구리", "scientific": "Pelophylax chosenicus", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 89, "group": "양서파충류", "grade": "II", "name": "남생이", "scientific": "Mauremys reevesii", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "EN"}, {"id": 90, "group": "양서파충류", "grade": "II", "name": "맹꽁이", "scientific": "Kaloula borealis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 91, "group": "양서파충류", "grade": "II", "name": "표범장지뱀", "scientific": "Eremias argus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 92, "group": "어류", "grade": "I", "name": "감돌고기", "scientific": "Pseudopungtungia nigra", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 93, "group": "어류", "grade": "I", "name": "꼬치동자개", "scientific": "Pseudobagrus brevicorpus", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 94, "group": "어류", "grade": "I", "name": "남방동사리", "scientific": "Odontobutis obscura", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 95, "group": "어류", "grade": "I", "name": "모래주사", "scientific": "Microphysogobio koreensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 96, "group": "어류", "grade": "I", "name": "미호종개", "scientific": "Cobitis choii", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 97, "group": "어류", "grade": "I", "name": "얼룩새코미꾸리", "scientific": "Koreocobitis naktongensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 98, "group": "어류", "grade": "I", "name": "여울마자", "scientific": "Microphysogobio rapidus", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 99, "group": "어류", "grade": "I", "name": "임실납자루", "scientific": "Acheilognathus somjinensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 100, "group": "어류", "grade": "I", "name": "좀수수치", "scientific": "Kichulchoia brevifasciata", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 101, "group": "어류", "grade": "I", "name": "퉁사리", "scientific": "Liobagrus obesus", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 102, "group": "어류", "grade": "I", "name": "흰수마자", "scientific": "Gobiobotia nakdongensis", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 103, "group": "어류", "grade": "II", "name": "가는돌고기", "scientific": "Pseudopungtungia tenuicorpa", "endemic": true, "redlist_kr": "NT", "redlist_iucn": "미기재"}, {"id": 104, "group": "어류", "grade": "II", "name": "가시고기", "scientific": "Pungitius sinensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "VU"}, {"id": 105, "group": "어류", "grade": "II", "name": "꺽저기", "scientific": "Coreoperca kawamebari", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 106, "group": "어류", "grade": "II", "name": "꾸구리", "scientific": "Gobiobotia macrocephala", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 107, "group": "어류", "grade": "II", "name": "다묵장어", "scientific": "Lethenteron reissneri", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 108, "group": "어류", "grade": "II", "name": "돌상어", "scientific": "Gobiobotia brevibarba", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 109, "group": "어류", "grade": "II", "name": "묵납자루", "scientific": "Acheilognathus signifer", "endemic": true, "redlist_kr": "NT", "redlist_iucn": "미기재"}, {"id": 110, "group": "어류", "grade": "II", "name": "백조어", "scientific": "Culter brevicauda", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 111, "group": "어류", "grade": "II", "name": "버들가지", "scientific": "Rhynchocypris semotilus", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 112, "group": "어류", "grade": "II", "name": "부안종개", "scientific": "Iksookimia pumila", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 113, "group": "어류", "grade": "II", "name": "연준모치", "scientific": "Phoxinus phoxinus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 114, "group": "어류", "grade": "II", "name": "열목어", "scientific": "Brachymystax lenok tsinlingensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 115, "group": "어류", "grade": "II", "name": "칠성장어", "scientific": "Lethenteron japonicus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 116, "group": "어류", "grade": "II", "name": "큰줄납자루", "scientific": "Acheilognathus majusculus", "endemic": true, "redlist_kr": "LC", "redlist_iucn": "미기재"}, {"id": 117, "group": "어류", "grade": "II", "name": "한강납줄개", "scientific": "Rhodeus pseudosericeus", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 118, "group": "어류", "grade": "II", "name": "한둑중개", "scientific": "Cottus hangiongensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 119, "group": "곤충류", "grade": "I", "name": "붉은점모시나비", "scientific": "Parnassius bremeri", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 120, "group": "곤충류", "grade": "I", "name": "비단벌레", "scientific": "Chrysochroa coreana", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 121, "group": "곤충류", "grade": "I", "name": "산굴뚝나비", "scientific": "Hipparchia autonoe", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 122, "group": "곤충류", "grade": "I", "name": "상제나비", "scientific": "Aporia crataegi", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 123, "group": "곤충류", "grade": "I", "name": "수염풍뎅이", "scientific": "Polyphylla laticollis manchurica", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 124, "group": "곤충류", "grade": "I", "name": "장수하늘소", "scientific": "Callipogon relictus", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 125, "group": "곤충류", "grade": "II", "name": "깊은산부전나비", "scientific": "Protantigius superans", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 126, "group": "곤충류", "grade": "II", "name": "꼬마잠자리", "scientific": "Nannophya pygmaea", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 127, "group": "곤충류", "grade": "II", "name": "노란잔산잠자리", "scientific": "Macromia daimoji", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 128, "group": "곤충류", "grade": "II", "name": "닻무늬길앞잡이", "scientific": "Cicindela anchoralis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 129, "group": "곤충류", "grade": "II", "name": "대모잠자리", "scientific": "Libellula angelina", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "CR"}, {"id": 130, "group": "곤충류", "grade": "II", "name": "두점박이사슴벌레", "scientific": "Prosopocoilus astacoides blanchardi", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 131, "group": "곤충류", "grade": "II", "name": "뚱보주름메뚜리", "scientific": "Haplotropis brunneriana", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 132, "group": "곤충류", "grade": "II", "name": "멋조롱박딱정벌레", "scientific": "Damaster mirabilissimus mirabilissimus", "endemic": true, "redlist_kr": "NT", "redlist_iucn": "미기재"}, {"id": 133, "group": "곤충류", "grade": "II", "name": "물방개", "scientific": "Cybister chinensis", "endemic": false, "redlist_kr": "NT", "redlist_iucn": "미기재"}, {"id": 134, "group": "곤충류", "grade": "II", "name": "물장군", "scientific": "Lethocerus deyrolli", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 135, "group": "곤충류", "grade": "II", "name": "소똥구리", "scientific": "Gymnopleurus mopsus", "endemic": false, "redlist_kr": "RE", "redlist_iucn": "미기재"}, {"id": 136, "group": "곤충류", "grade": "II", "name": "쌍꼬리부전나비", "scientific": "Cigaritis takanonis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 137, "group": "곤충류", "grade": "II", "name": "애기뿔소똥구리", "scientific": "Copris tripartitus", "endemic": false, "redlist_kr": "LC", "redlist_iucn": "미기재"}, {"id": 138, "group": "곤충류", "grade": "II", "name": "여름어리표범나비", "scientific": "Mellicta ambigua", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 139, "group": "곤충류", "grade": "II", "name": "왕은점표범나비", "scientific": "Argynnis nerippe", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 140, "group": "곤충류", "grade": "II", "name": "은줄팔랑나비", "scientific": "Leptalina unicolor", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 141, "group": "곤충류", "grade": "II", "name": "참호박뒤영벌", "scientific": "Bombus koreanus", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 142, "group": "곤충류", "grade": "II", "name": "창언조롱박딱정벌레", "scientific": "Damaster changeonleei", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 143, "group": "곤충류", "grade": "II", "name": "큰자색호랑꽃무지", "scientific": "Osmoderma opicum", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 144, "group": "곤충류", "grade": "II", "name": "큰홍띠점박이푸른부전나비", "scientific": "Sinia divina", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 145, "group": "무척추동물", "grade": "I", "name": "귀이빨대칭이", "scientific": "Cristaria plicata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "DD"}, {"id": 146, "group": "무척추동물", "grade": "I", "name": "나팔고둥", "scientific": "Charonia lampas sauliae", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 147, "group": "무척추동물", "grade": "I", "name": "남방방게", "scientific": "Pseudohelice subquadrata", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 148, "group": "무척추동물", "grade": "I", "name": "두드럭조개", "scientific": "Lamprotula coreana", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 149, "group": "무척추동물", "grade": "II", "name": "갯게", "scientific": "Chasmagnathus convexus", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 150, "group": "무척추동물", "grade": "II", "name": "거제외줄달팽이", "scientific": "Satsuma myomphala", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 151, "group": "무척추동물", "grade": "II", "name": "검붉은수지맨드라미", "scientific": "Dendronephthya suensoni", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 152, "group": "무척추동물", "grade": "II", "name": "금빛나팔돌산호", "scientific": "Tubastraea coccinea", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 153, "group": "무척추동물", "grade": "II", "name": "기수갈고둥", "scientific": "Clithon retropictus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 154, "group": "무척추동물", "grade": "II", "name": "깃산호", "scientific": "Plumarella spinosa", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 155, "group": "무척추동물", "grade": "II", "name": "대추귀고둥", "scientific": "Ellobium chinense", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "DD"}, {"id": 156, "group": "무척추동물", "grade": "II", "name": "둔한진총산호", "scientific": "Euplexaura crassa", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 157, "group": "무척추동물", "grade": "II", "name": "망상맵시산호", "scientific": "Echinogorgia reticulata", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 158, "group": "무척추동물", "grade": "II", "name": "물거미", "scientific": "Argyroneta aquatica", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 159, "group": "무척추동물", "grade": "II", "name": "밤수지맨드라미", "scientific": "Dendronephthya castanea", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 160, "group": "무척추동물", "grade": "II", "name": "별혹산호", "scientific": "Verrucella stellata", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 161, "group": "무척추동물", "grade": "II", "name": "붉은발말똥게", "scientific": "Sesarmops intermedius", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 162, "group": "무척추동물", "grade": "II", "name": "선침거미불가사리", "scientific": "Ophiacantha linea", "endemic": true, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 163, "group": "무척추동물", "grade": "II", "name": "연수지맨드라미", "scientific": "Dendronephthya mollis", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 164, "group": "무척추동물", "grade": "II", "name": "염주알다슬기", "scientific": "Koreanomelania nodifila", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 165, "group": "무척추동물", "grade": "II", "name": "울릉도달팽이", "scientific": "Karaftohelix adamsi", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 166, "group": "무척추동물", "grade": "II", "name": "유착나무돌산호", "scientific": "Dendrophyllia cribrosa", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 167, "group": "무척추동물", "grade": "II", "name": "의염통성게", "scientific": "Nacospatangus alta", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 168, "group": "무척추동물", "grade": "II", "name": "자색수지맨드라미", "scientific": "Dendronephthya putteri", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 169, "group": "무척추동물", "grade": "II", "name": "잔가지나무돌산호", "scientific": "Dendrophyllia ijimai", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 170, "group": "무척추동물", "grade": "II", "name": "착생깃산호", "scientific": "Plumarella adhaerens", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 171, "group": "무척추동물", "grade": "II", "name": "참달팽이", "scientific": "Koreanohadra koreana", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 172, "group": "무척추동물", "grade": "II", "name": "측맵시산호", "scientific": "Echinogorgia complexa", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 173, "group": "무척추동물", "grade": "II", "name": "칼세오리옆새우", "scientific": "Gammarus zeongogensis", "endemic": true, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 174, "group": "무척추동물", "grade": "II", "name": "해송", "scientific": "Myriopathes japonica", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 175, "group": "무척추동물", "grade": "II", "name": "흰발농게", "scientific": "Uca lactea", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 176, "group": "무척추동물", "grade": "II", "name": "흰수지맨드라미", "scientific": "Dendronephthya alba", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 177, "group": "식물", "grade": "I", "name": "광릉요강꽃", "scientific": "Cypripedium japonicum", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "EN"}, {"id": 178, "group": "식물", "grade": "I", "name": "금자란", "scientific": "Gastrochilus fuscopunctatus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 179, "group": "식물", "grade": "I", "name": "나도풍란", "scientific": "Sedirea japonica", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 180, "group": "식물", "grade": "I", "name": "만년콩", "scientific": "Euchresta japonica", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 181, "group": "식물", "grade": "I", "name": "비자란", "scientific": "Thrixspermum japonicum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 182, "group": "식물", "grade": "I", "name": "암매", "scientific": "Diapensia lapponica var. obovata", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 183, "group": "식물", "grade": "I", "name": "죽백란", "scientific": "Cymbidium lancifolium", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 184, "group": "식물", "grade": "I", "name": "털복주머니란", "scientific": "Cypripedium guttatum", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "LC"}, {"id": 185, "group": "식물", "grade": "I", "name": "풍란", "scientific": "Neofinetia falcata", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 186, "group": "식물", "grade": "I", "name": "한라솜다리", "scientific": "Leontopodium hallaisanense", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 187, "group": "식물", "grade": "I", "name": "한란", "scientific": "Cymbidium kanran", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 188, "group": "식물", "grade": "II", "name": "가는동자꽃", "scientific": "Lychnis kiusiana", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 189, "group": "식물", "grade": "II", "name": "가시연", "scientific": "Euryale ferox", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 190, "group": "식물", "grade": "II", "name": "가시오갈피나무", "scientific": "Eleutherococcus senticosus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 191, "group": "식물", "grade": "II", "name": "각시수련", "scientific": "Nymphaea tetragona var. minima", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "LC"}, {"id": 192, "group": "식물", "grade": "II", "name": "개가시나무", "scientific": "Quercus gilva", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 193, "group": "식물", "grade": "II", "name": "개병풍", "scientific": "Astilboides tabularis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 194, "group": "식물", "grade": "II", "name": "갯봄맞이꽃", "scientific": "Glaux maritima var. obtusifolia", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 195, "group": "식물", "grade": "II", "name": "검은별고사리", "scientific": "Cyclosorus interruptus", "endemic": false, "redlist_kr": "NE", "redlist_iucn": "LC"}, {"id": 196, "group": "식물", "grade": "II", "name": "구름병아리난초", "scientific": "Gymnadenia cucullata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 197, "group": "식물", "grade": "II", "name": "기생꽃", "scientific": "Trientalis europaea ssp. arctica", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 198, "group": "식물", "grade": "II", "name": "끈끈이귀개", "scientific": "Drosera peltata var. nipponica", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 199, "group": "식물", "grade": "II", "name": "나도승마", "scientific": "Kirengeshoma koreana", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "EN"}, {"id": 200, "group": "식물", "grade": "II", "name": "날개하늘나리", "scientific": "Lilium dauricum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 201, "group": "식물", "grade": "II", "name": "넓은잎제비꽃", "scientific": "Viola mirabilis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 202, "group": "식물", "grade": "II", "name": "노랑만병초", "scientific": "Rhododendron aureum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 203, "group": "식물", "grade": "II", "name": "노랑붓꽃", "scientific": "Iris koreana", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "EN"}, {"id": 204, "group": "식물", "grade": "II", "name": "단양쑥부쟁이", "scientific": "Aster altaicus var. uchiyamae", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 205, "group": "식물", "grade": "II", "name": "닻꽃", "scientific": "Halenia corniculata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 206, "group": "식물", "grade": "II", "name": "대성쓴풀", "scientific": "Anagallidium dichotomum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 207, "group": "식물", "grade": "II", "name": "대청부채", "scientific": "Iris dichotoma", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 208, "group": "식물", "grade": "II", "name": "대흥란", "scientific": "Cymbidium macrorhizon", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 209, "group": "식물", "grade": "II", "name": "독미나리", "scientific": "Cicuta virosa", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 210, "group": "식물", "grade": "II", "name": "두잎약난초", "scientific": "Cremastra unguiculata", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 211, "group": "식물", "grade": "II", "name": "매화마름", "scientific": "Ranunculus trichophyllus var. kadzusensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 212, "group": "식물", "grade": "II", "name": "무주나무", "scientific": "Lasianthus japonicus", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 213, "group": "식물", "grade": "II", "name": "물고사리", "scientific": "Ceratopteris thalictroides", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 214, "group": "식물", "grade": "II", "name": "방울난초", "scientific": "Habenaria flagellifera", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 215, "group": "식물", "grade": "II", "name": "백부자", "scientific": "Aconitum coreanum", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 216, "group": "식물", "grade": "II", "name": "백양더부살이", "scientific": "Orobanche filicicola", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 217, "group": "식물", "grade": "II", "name": "백운란", "scientific": "Vexillabium yakusimensis var. nakaianum", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 218, "group": "식물", "grade": "II", "name": "복주머니란", "scientific": "Cypripedium macranthos", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "LC"}, {"id": 219, "group": "식물", "grade": "II", "name": "분홍장구채", "scientific": "Silene capitata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 220, "group": "식물", "grade": "II", "name": "산분꽃나무", "scientific": "Viburnum burejaeticum", "endemic": false, "redlist_kr": "NE", "redlist_iucn": "미기재"}, {"id": 221, "group": "식물", "grade": "II", "name": "산작약", "scientific": "Paeonia obovata", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 222, "group": "식물", "grade": "II", "name": "삼백초", "scientific": "Saururus chinensis", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 223, "group": "식물", "grade": "II", "name": "새깃아재비", "scientific": "Woodwardia japonica", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 224, "group": "식물", "grade": "II", "name": "서울개발나물", "scientific": "Pterygopleurum neurophyllum", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 225, "group": "식물", "grade": "II", "name": "석곡", "scientific": "Dendrobium moniliforme", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 226, "group": "식물", "grade": "II", "name": "선제비꽃", "scientific": "Viola raddeana", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 227, "group": "식물", "grade": "II", "name": "섬개야광나무", "scientific": "Cotoneaster wilsonii", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 228, "group": "식물", "grade": "II", "name": "섬개현삼", "scientific": "Scrophularia takesimensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 229, "group": "식물", "grade": "II", "name": "섬시호", "scientific": "Bupleurum latissimum", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "CR"}, {"id": 230, "group": "식물", "grade": "II", "name": "세뿔투구꽃", "scientific": "Aconitum austrokoreense", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "NT"}, {"id": 231, "group": "식물", "grade": "II", "name": "손바닥난초", "scientific": "Gymnadenia conopsea", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "DD"}, {"id": 232, "group": "식물", "grade": "II", "name": "솔붓꽃", "scientific": "Iris ruthenica var. nana", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 233, "group": "식물", "grade": "II", "name": "솔잎난", "scientific": "Psilotum nudum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 234, "group": "식물", "grade": "II", "name": "순채", "scientific": "Brasenia schreberi", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 235, "group": "식물", "grade": "II", "name": "신안새우난초", "scientific": "Calanthe aristulifera", "endemic": false, "redlist_kr": "NE", "redlist_iucn": "미기재"}, {"id": 236, "group": "식물", "grade": "II", "name": "애기송이풀", "scientific": "Pedicularis ishidoyana", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 237, "group": "식물", "grade": "II", "name": "연잎꿩의다리", "scientific": "Thalictrum coreanum", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 238, "group": "식물", "grade": "II", "name": "왕제비꽃", "scientific": "Viola websteri", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 239, "group": "식물", "grade": "II", "name": "으름난초", "scientific": "Cyrtosia septentrionalis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 240, "group": "식물", "grade": "II", "name": "자주땅귀개", "scientific": "Utricularia yakusimensis", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 241, "group": "식물", "grade": "II", "name": "전주물꼬리풀", "scientific": "Dysophylla yatabeana", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 242, "group": "식물", "grade": "II", "name": "정향풀", "scientific": "Amsonia elliptica", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 243, "group": "식물", "grade": "II", "name": "제비동자꽃", "scientific": "Lychnis wilfordii", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 244, "group": "식물", "grade": "II", "name": "제비붓꽃", "scientific": "Iris laevigata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 245, "group": "식물", "grade": "II", "name": "제주고사리삼", "scientific": "Mankyua chejuense", "endemic": true, "redlist_kr": "CR", "redlist_iucn": "EN"}, {"id": 246, "group": "식물", "grade": "II", "name": "조름나물", "scientific": "Menyanthes trifoliata", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 247, "group": "식물", "grade": "II", "name": "죽절초", "scientific": "Sarcandra glabra", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 248, "group": "식물", "grade": "II", "name": "지네발란", "scientific": "Cleisostoma scolopendrifolium", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 249, "group": "식물", "grade": "II", "name": "진노랑상사화", "scientific": "Lycoris chinensis var. sinuolata", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 250, "group": "식물", "grade": "II", "name": "차걸이란", "scientific": "Oberonia japonica", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 251, "group": "식물", "grade": "II", "name": "참물부추", "scientific": "Isoetes coreana", "endemic": true, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 252, "group": "식물", "grade": "II", "name": "초령목", "scientific": "Michelia compressa", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 253, "group": "식물", "grade": "II", "name": "칠보치마", "scientific": "Metanarthecium luteo-viride", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 254, "group": "식물", "grade": "II", "name": "콩짜개란", "scientific": "Bulbophyllum drymoglossum", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 255, "group": "식물", "grade": "II", "name": "큰바늘꽃", "scientific": "Epilobium hirsutum", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "LC"}, {"id": 256, "group": "식물", "grade": "II", "name": "탐라란", "scientific": "Gastrochilus japonicus", "endemic": false, "redlist_kr": "CR", "redlist_iucn": "미기재"}, {"id": 257, "group": "식물", "grade": "II", "name": "파초일엽", "scientific": "Asplenium antiquum", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 258, "group": "식물", "grade": "II", "name": "피뿌리풀", "scientific": "Stellera chamaejasme", "endemic": false, "redlist_kr": "NE", "redlist_iucn": "미기재"}, {"id": 259, "group": "식물", "grade": "II", "name": "한라송이풀", "scientific": "Pedicularis hallaisanensis", "endemic": true, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 260, "group": "식물", "grade": "II", "name": "한라옥잠난초", "scientific": "Liparis auriculata", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 261, "group": "식물", "grade": "II", "name": "해오라비난초", "scientific": "Habenaria radiata", "endemic": false, "redlist_kr": "EN", "redlist_iucn": "미기재"}, {"id": 262, "group": "식물", "grade": "II", "name": "혹난초", "scientific": "Bulbophyllum inconspicuum", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 263, "group": "식물", "grade": "II", "name": "홍월귤", "scientific": "Arctous alpinus var. japonicus", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 264, "group": "식물", "grade": "II", "name": "황근", "scientific": "Hibiscus hamabo", "endemic": false, "redlist_kr": "VU", "redlist_iucn": "미기재"}, {"id": 265, "group": "해조류", "grade": "II", "name": "그물공말", "scientific": "Dictyosphaeria cavernosa", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 266, "group": "해조류", "grade": "II", "name": "삼나무말", "scientific": "Coccophora langsdorfii", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}, {"id": 267, "group": "고등균류", "grade": "II", "name": "화경버섯", "scientific": "Lampteromyces japonicus", "endemic": false, "redlist_kr": "미기재", "redlist_iucn": "미기재"}];
+
+    const state = {
+      group: "ALL",
+      grade: "ALL",
+      endemicOnly: false,
+      query: "",
+      selectedId: SPECIES_DATA.length > 0 ? SPECIES_DATA[0].id : null
+    };
+
+    const groupsOrdered = [];
+    SPECIES_DATA.forEach(function(d) {
+      if (groupsOrdered.indexOf(d.group) === -1) groupsOrdered.push(d.group);
+    });
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderGroupChips() {
+      const container = document.getElementById("groupFilters");
+      const allBtn = document.createElement("button");
+      allBtn.type = "button";
+      allBtn.className = "chip active";
+      allBtn.dataset.group = "ALL";
+      allBtn.textContent = "전체 (" + SPECIES_DATA.length + ")";
+      allBtn.onclick = function() { state.group = "ALL"; updateAll(); };
+      container.appendChild(allBtn);
+
+      groupsOrdered.forEach(function(grp) {
+        const cnt = SPECIES_DATA.filter(function(d) { return d.group === grp; }).length;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chip";
+        btn.dataset.group = grp;
+        btn.textContent = grp + " (" + cnt + ")";
+        btn.onclick = function() {
+          state.group = (state.group === grp) ? "ALL" : grp;
+          updateAll();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderGroupBarChart() {
+      const box = document.getElementById("groupBarChart");
+      box.innerHTML = "";
+      const maxTotal = Math.max.apply(null, groupsOrdered.map(function(g) {
+        return SPECIES_DATA.filter(function(d) { return d.group === g; }).length;
+      }));
+
+      groupsOrdered.forEach(function(grp) {
+        const g1 = SPECIES_DATA.filter(function(d) { return d.group === grp && d.grade === "I"; }).length;
+        const g2 = SPECIES_DATA.filter(function(d) { return d.group === grp && d.grade === "II"; }).length;
+        const total = g1 + g2;
+        const w1 = (g1 / maxTotal) * 100;
+        const w2 = (g2 / maxTotal) * 100;
+
+        const row = document.createElement("div");
+        row.className = "bar-row" + (state.group === grp ? " selected-bar" : "");
+        row.innerHTML =
+          '<div class="bar-label">' + escapeHtml(grp) + '</div>' +
+          '<div class="bar-track">' +
+            '<div class="bar-seg-g1" style="width:' + w1.toFixed(2) + '%;">' + (g1 >= 4 ? g1 : "") + '</div>' +
+            '<div class="bar-seg-g2" style="width:' + w2.toFixed(2) + '%;">' + (g2 >= 5 ? g2 : "") + '</div>' +
+          '</div>' +
+          '<div class="bar-total">' + total + '종 (' + g1 + '/' + g2 + ')</div>';
+        row.onclick = function() {
+          state.group = (state.group === grp) ? "ALL" : grp;
+          updateAll();
+        };
+        box.appendChild(row);
+      });
+    }
+
+    function renderRedlistChart() {
+      const box = document.getElementById("redlistBarChart");
+      box.innerHTML = "";
+      const cats = [
+        { code: "CR", label: "CR (위급)" },
+        { code: "EN", label: "EN (위기)" },
+        { code: "VU", label: "VU (취약)" },
+        { code: "NT", label: "NT (준위협)" },
+        { code: "LC", label: "LC (최소관심)" },
+        { code: "RE", label: "RE (지역절멸)" },
+        { code: "NE", label: "NE (미평가)" }
+      ];
+      const maxVal = 100;
+
+      cats.forEach(function(c) {
+        const kr = SPECIES_DATA.filter(function(d) { return d.redlist_kr === c.code; }).length;
+        const iucn = SPECIES_DATA.filter(function(d) { return d.redlist_iucn === c.code; }).length;
+        const row = document.createElement("div");
+        row.className = "rl-row";
+        row.innerHTML =
+          '<div class="rl-code" title="' + c.label + '">' + c.code + '</div>' +
+          '<div class="rl-bars">' +
+            '<div class="rl-bar-bg"><div class="rl-bar-kr" style="width:' + Math.min(100, (kr / maxVal) * 100).toFixed(1) + '%;"></div></div>' +
+            '<div class="rl-bar-bg"><div class="rl-bar-iucn" style="width:' + Math.min(100, (iucn / maxVal) * 100).toFixed(1) + '%;"></div></div>' +
+          '</div>' +
+          '<div class="rl-nums">KR ' + kr + ' / IUCN ' + iucn + '</div>';
+        box.appendChild(row);
+      });
+    }
+
+    function syncChipStates() {
+      document.querySelectorAll("#groupFilters .chip").forEach(function(btn) {
+        btn.classList.toggle("active", state.group === btn.dataset.group);
+      });
+      document.querySelectorAll("#gradeFilters .chip").forEach(function(btn) {
+        const gr = btn.dataset.grade;
+        btn.classList.remove("active", "active-g1");
+        if (state.grade === gr) {
+          btn.classList.add(gr === "I" ? "active-g1" : "active");
+        }
+      });
+      document.getElementById("endemicToggle").classList.toggle("active", state.endemicOnly);
+    }
+
+    function getFilteredData() {
+      const q = state.query.trim().toLowerCase();
+      return SPECIES_DATA.filter(function(d) {
+        if (state.group !== "ALL" && d.group !== state.group) return false;
+        if (state.grade !== "ALL" && d.grade !== state.grade) return false;
+        if (state.endemicOnly && !d.endemic) return false;
+        if (q) {
+          const m1 = d.name.toLowerCase().indexOf(q) !== -1;
+          const m2 = d.scientific.toLowerCase().indexOf(q) !== -1;
+          if (!m1 && !m2) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderWaffle(filteredIds) {
+      const grid = document.getElementById("waffleGrid");
+      grid.innerHTML = "";
+      const idMap = {};
+      filteredIds.forEach(function(id) { idMap[id] = true; });
+
+      SPECIES_DATA.forEach(function(item) {
+        const cell = document.createElement("div");
+        const isMatch = !!idMap[item.id];
+        const isSelected = item.id === state.selectedId;
+        cell.className = "species-cell" + (isMatch ? "" : " dimmed") + (isSelected ? " selected" : "");
+        cell.style.backgroundColor = (item.grade === "I") ? "#C84B31" : "#2D6A4F";
+        if (item.endemic) {
+          cell.style.boxShadow = isSelected ? "0 3px 10px rgba(0,0,0,0.25)" : "inset 0 0 0 2px #90CDF4";
+        }
+        cell.title = item.name + " (" + item.group + " · " + item.grade + "급" + (item.endemic ? " · 고유종" : "") + ")";
+        cell.onclick = function() {
+          state.selectedId = item.id;
+          const cur = getFilteredData();
+          renderWaffle(cur.map(function(x) { return x.id; }));
+          renderTable(cur);
+          renderDetail();
+        };
+        grid.appendChild(cell);
+      });
+    }
+
+    function renderTable(filtered) {
+      const tbody = document.getElementById("speciesTableBody");
+      document.getElementById("tableNote").textContent = filtered.length + "개 항목 표시";
+      tbody.innerHTML = "";
+
+      filtered.forEach(function(item) {
+        const tr = document.createElement("tr");
+        if (item.id === state.selectedId) tr.className = "active-row";
+        tr.innerHTML =
+          "<td>" + escapeHtml(item.name) + "</td>" +
+          '<td style="font-style:italic; color:var(--muted);">' + escapeHtml(item.scientific) + "</td>" +
+          "<td>" + escapeHtml(item.group) + "</td>" +
+          '<td><span class="badge ' + (item.grade === "I" ? "badge-g1" : "badge-g2") + '">' + escapeHtml(item.grade) + "급</span></td>" +
+          "<td>" + (item.endemic ? '<span class="badge badge-en">Y</span>' : '<span style="color:var(--muted);">-</span>') + "</td>";
+        tr.onclick = function() {
+          state.selectedId = item.id;
+          const cur = getFilteredData();
+          renderWaffle(cur.map(function(x) { return x.id; }));
+          renderTable(cur);
+          renderDetail();
+        };
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderDetail() {
+      let item = null;
+      for (let i = 0; i < SPECIES_DATA.length; i++) {
+        if (SPECIES_DATA[i].id === state.selectedId) {
+          item = SPECIES_DATA[i];
+          break;
+        }
+      }
+      const box = document.getElementById("detailContent");
+      const idLabel = document.getElementById("detailId");
+      if (!item) {
+        idLabel.textContent = "";
+        box.innerHTML = '<div style="color:var(--muted); padding:20px;">선택된 생물이 없습니다.</div>';
+        return;
+      }
+      idLabel.textContent = "#" + item.id;
+      box.innerHTML =
+        '<div class="detail-name">' + escapeHtml(item.name) + '</div>' +
+        '<div class="detail-sci">' + escapeHtml(item.scientific) + '</div>' +
+        '<div class="badge-row">' +
+          '<span class="badge ' + (item.grade === "I" ? "badge-g1" : "badge-g2") + '">멸종위기 ' + escapeHtml(item.grade) + '급</span>' +
+          '<span class="badge badge-neu">' + escapeHtml(item.group) + '</span>' +
+          (item.endemic ? '<span class="badge badge-en">고유종 (Y)</span>' : '') +
+        '</div>' +
+        '<table class="meta-table">' +
+          '<tr><th>분류군</th><td>' + escapeHtml(item.group) + '</td></tr>' +
+          '<tr><th>법정 등급</th><td>' + escapeHtml(item.grade) + '급</td></tr>' +
+          '<tr><th>고유종 여부</th><td>' + (item.endemic ? "Y (고유종)" : "미표기 (-)") + '</td></tr>' +
+          '<tr><th>국가적색목록</th><td>' + escapeHtml(item.redlist_kr) + '</td></tr>' +
+          '<tr><th>세계자연보전연맹(IUCN)</th><td>' + escapeHtml(item.redlist_iucn) + '</td></tr>' +
+        '</table>';
+    }
+
+    function updateAll() {
+      syncChipStates();
+      renderGroupBarChart();
+      const filtered = getFilteredData();
+      document.getElementById("resultCount").textContent = "검색·필터 결과: " + filtered.length + " / " + SPECIES_DATA.length + "종";
+      renderWaffle(filtered.map(function(d) { return d.id; }));
+      renderTable(filtered);
+      renderDetail();
+    }
+
+    document.querySelectorAll("#gradeFilters .chip").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        state.grade = btn.dataset.grade;
+        updateAll();
+      });
+    });
+
+    document.getElementById("endemicToggle").addEventListener("click", function() {
+      state.endemicOnly = !state.endemicOnly;
+      updateAll();
+    });
+
+    document.getElementById("searchInput").addEventListener("input", function(e) {
+      state.query = e.target.value;
+      updateAll();
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", function() {
+      state.group = "ALL";
+      state.grade = "ALL";
+      state.endemicOnly = false;
+      state.query = "";
+      document.getElementById("searchInput").value = "";
+      updateAll();
+    });
+
+    renderGroupChips();
+    renderRedlistChart();
+    updateAll();
+  </script>
+</body>
+</html>
